@@ -1,0 +1,184 @@
+Q3: COURIER PACKAGE MANAGEMENT (Object File Handling)
+=====================================================
+
+PATTERN TO REMEMBER:
+Every operation = readAll() -> change the list -> writeAll()
+- Class must implement Serializable
+- Whole ArrayList is stored as ONE object in the file
+- Check f.exists() first so a missing file gives an empty list
+
+-----------------------------------------------------
+CODE (save as CourierManagement.java)
+-----------------------------------------------------
+
+import java.io.*;
+import java.util.*;
+
+class CourierPackage implements Serializable {
+    String packageId, senderName, receiverName, source, destination, deliveryStatus;
+    double packageWeight, deliveryCharge;
+
+    CourierPackage(String id, String s, String r, String src, String dest,
+                   double w, double c, String status) {
+        packageId = id; senderName = s; receiverName = r; source = src;
+        destination = dest; packageWeight = w; deliveryCharge = c; deliveryStatus = status;
+    }
+
+    void display() {
+        System.out.println(packageId + " | " + senderName + " | " + receiverName + " | "
+            + source + " | " + destination + " | " + packageWeight + " | "
+            + deliveryCharge + " | " + deliveryStatus);
+    }
+}
+
+public class CourierManagement {
+    static final String FILE = "packages.dat";
+    static Scanner sc = new Scanner(System.in);
+
+    // READ whole list from file
+    @SuppressWarnings("unchecked")
+    static ArrayList<CourierPackage> readAll() {
+        ArrayList<CourierPackage> list = new ArrayList<>();
+        File f = new File(FILE);
+        if (!f.exists()) return list;
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(f))) {
+            list = (ArrayList<CourierPackage>) in.readObject();
+        } catch (Exception e) { System.out.println("Read error: " + e.getMessage()); }
+        return list;
+    }
+
+    // WRITE whole list to file (overwrites)
+    static void writeAll(ArrayList<CourierPackage> list) {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(FILE))) {
+            out.writeObject(list);
+        } catch (IOException e) { System.out.println("Write error: " + e.getMessage()); }
+    }
+
+    // helper: find package by id (null if not found)
+    static CourierPackage find(ArrayList<CourierPackage> list, String id) {
+        for (CourierPackage p : list)
+            if (p.packageId.equalsIgnoreCase(id)) return p;
+        return null;
+    }
+
+    // 2. ADD
+    static void addPackage() {
+        ArrayList<CourierPackage> list = readAll();
+        System.out.print("Package ID: ");  String id = sc.nextLine();
+        if (find(list, id) != null) { System.out.println("ID already exists!"); return; }
+        System.out.print("Sender: ");      String s = sc.nextLine();
+        System.out.print("Receiver: ");    String r = sc.nextLine();
+        System.out.print("Source: ");      String src = sc.nextLine();
+        System.out.print("Destination: "); String dest = sc.nextLine();
+        System.out.print("Weight: ");      double w = Double.parseDouble(sc.nextLine());
+        System.out.print("Charge: ");      double c = Double.parseDouble(sc.nextLine());
+        System.out.print("Status (Booked/In Transit/Delivered/Cancelled): ");
+        String st = sc.nextLine();
+        list.add(new CourierPackage(id, s, r, src, dest, w, c, st));
+        writeAll(list);
+        System.out.println("Added.");
+    }
+
+    // 3. DISPLAY ALL
+    static void displayAllPackages() {
+        ArrayList<CourierPackage> list = readAll();
+        if (list.isEmpty()) { System.out.println("No records found."); return; }
+        for (CourierPackage p : list) p.display();
+    }
+
+    // 4. SEARCH
+    static void searchPackage() {
+        System.out.print("Package ID: ");
+        CourierPackage p = find(readAll(), sc.nextLine());
+        if (p == null) System.out.println("Package not found.");
+        else p.display();
+    }
+
+    // 5. UPDATE
+    static void updatePackage() {
+        ArrayList<CourierPackage> list = readAll();
+        System.out.print("Package ID: ");
+        CourierPackage p = find(list, sc.nextLine());
+        if (p == null) { System.out.println("Package not found."); return; }
+        System.out.print("New Destination: ");  p.destination = sc.nextLine();
+        System.out.print("New Charge: ");       p.deliveryCharge = Double.parseDouble(sc.nextLine());
+        System.out.print("New Status: ");       p.deliveryStatus = sc.nextLine();
+        writeAll(list);
+        System.out.println("Updated.");
+    }
+
+    // 6. DELETE
+    static void deletePackage() {
+        ArrayList<CourierPackage> list = readAll();
+        System.out.print("Package ID: ");
+        CourierPackage p = find(list, sc.nextLine());
+        if (p == null) { System.out.println("Package not found."); return; }
+        list.remove(p);
+        writeAll(list);
+        System.out.println("Deleted.");
+    }
+
+    // 7. REPORT
+    static void generateDeliveryReport() {
+        ArrayList<CourierPackage> list = readAll();
+        if (list.isEmpty()) { System.out.println("No records found."); return; }
+        int count = 0; double revenue = 0;
+        CourierPackage highest = list.get(0);
+        for (CourierPackage p : list) {
+            if (p.deliveryStatus.equalsIgnoreCase("Delivered")) {
+                count++;
+                revenue += p.deliveryCharge;
+            }
+            if (p.deliveryCharge > highest.deliveryCharge) highest = p;
+        }
+        System.out.println("===== DELIVERY REPORT =====");
+        System.out.println("Delivered Packages      : " + count);
+        System.out.println("Total Delivery Revenue  : Rs." + revenue);
+        System.out.println("Highest Charge Package  : " + highest.packageId);
+        System.out.println("Highest Delivery Charge : Rs." + highest.deliveryCharge);
+    }
+
+    // 8. MAIN + MENU
+    public static void main(String[] args) {
+        while (true) {
+            System.out.println("\n===== COURIER PACKAGE MANAGEMENT =====");
+            System.out.println("1. Add Package");
+            System.out.println("2. Display All Packages");
+            System.out.println("3. Search Package");
+            System.out.println("4. Update Package");
+            System.out.println("5. Delete Package");
+            System.out.println("6. Generate Delivery Report");
+            System.out.println("7. Exit");
+            System.out.print("Enter choice: ");
+            int ch = Integer.parseInt(sc.nextLine());
+            switch (ch) {
+                case 1: addPackage(); break;
+                case 2: displayAllPackages(); break;
+                case 3: searchPackage(); break;
+                case 4: updatePackage(); break;
+                case 5: deletePackage(); break;
+                case 6: generateDeliveryReport(); break;
+                case 7: return;
+                default: System.out.println("Invalid choice");
+            }
+        }
+    }
+}
+
+-----------------------------------------------------
+KEY POINTS
+-----------------------------------------------------
+1. class CourierPackage implements Serializable
+2. Write: new ObjectOutputStream(new FileOutputStream(FILE)).writeObject(list)
+3. Read : (ArrayList<CourierPackage>) new ObjectInputStream(new FileInputStream(f)).readObject()
+4. Add / Update / Delete: readAll() -> modify -> writeAll()
+5. Search / Display / Report: only readAll()
+6. Exact messages: "Package not found."  and  "No records found."
+7. Report = one loop with a running total + "highest so far" variable
+
+SAMPLE DATA
+P101 Arun   Ravi  Bangalore Chennai   2.5  450  Delivered
+P102 Meena  Kiran Delhi     Mumbai    5.0  900  In Transit
+P103 Raj    Priya Bangalore Hyderabad 1.5  350  Delivered
+P104 Suresh Anu   Pune      Bangalore 8.0  1400 Delivered
+P105 Kumar  Divya Chennai   Delhi     10.0 2500 In Transit
